@@ -1,0 +1,6 @@
+{
+  "name": "Nexora",
+  "description": "Unified communication, academic ERP, intelligent search, and AI-powered productivity platform for schools and organizations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
