@@ -36,6 +36,7 @@ export const AssignmentsView: React.FC = () => {
   // Teacher Creation form state
   const [newTitle, setNewTitle] = useState('');
   const [newSubject, setNewSubject] = useState('General Science');
+  const [newClassGroup, setNewClassGroup] = useState('Class 7-A');
   const [newDueDate, setNewDueDate] = useState('In 5 days');
   const [newDescription, setNewDescription] = useState('');
   const [newPoints, setNewPoints] = useState(50);
@@ -83,7 +84,7 @@ export const AssignmentsView: React.FC = () => {
       dueDate: newDueDate,
       maxPoints: Number(newPoints),
       priority: newPriority,
-      classGroup: 'Class 7-A',
+      classGroup: newClassGroup,
       instructions: [
         'Read relevant lecture notes in Documents folder.',
         'Submit neat step-by-step calculations or observations.',
@@ -588,7 +589,21 @@ export const AssignmentsView: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Target Section</label>
+                  <select
+                    value={newClassGroup}
+                    onChange={(e) => setNewClassGroup(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  >
+                    <option>Class 7-A</option>
+                    <option>Class 7-B</option>
+                    <option>Class 7-C</option>
+                    <option>Class 8-A</option>
+                    <option>FY B.Sc CS</option>
+                  </select>
+                </div>
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Subject</label>
                   <select
@@ -599,6 +614,8 @@ export const AssignmentsView: React.FC = () => {
                     <option>General Science</option>
                     <option>Environmental Studies</option>
                     <option>Mathematics</option>
+                    <option>Natural Science</option>
+                    <option>Biology & Physiology</option>
                     <option>English Literature</option>
                   </select>
                 </div>

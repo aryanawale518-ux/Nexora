@@ -21,6 +21,8 @@ import { TeacherDeskView } from './components/views/TeacherDeskView';
 import { AdminConsoleView } from './components/views/AdminConsoleView';
 import { NotificationsView } from './components/views/NotificationsView';
 import { SettingsView } from './components/views/SettingsView';
+import { SignInPageView } from './components/views/SignInPageView';
+import { Mail, Phone, X, CheckCircle2 } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
   const {
@@ -30,10 +32,28 @@ const MainAppContent: React.FC = () => {
     assistantOpen,
     setAssistantOpen,
     initialAssistantQuery,
+    isAuthenticated,
+    lastDispatchedAlert,
+    clearLastDispatchedAlert,
   } = useApp();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [setupGuideOpen, setSetupGuideOpen] = useState(false);
+
+  // Auto-dismiss alert toast after 6 seconds
+  useEffect(() => {
+    if (lastDispatchedAlert) {
+      const timer = setTimeout(() => {
+        clearLastDispatchedAlert();
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastDispatchedAlert, clearLastDispatchedAlert]);
+
+  // If user is signed out, always show the SignInPageView first as requested
+  if (!isAuthenticated) {
+    return <SignInPageView />;
+  }
 
   // Global keyboard shortcut: Cmd+K / Ctrl+K opens search
   useEffect(() => {
@@ -123,6 +143,50 @@ const MainAppContent: React.FC = () => {
         isOpen={setupGuideOpen}
         onClose={() => setSetupGuideOpen(false)}
       />
+
+      {/* Real-time Notification Channel Dispatch Toast (Email/SMS) */}
+      {lastDispatchedAlert && (
+        <div className="fixed bottom-16 md:bottom-6 right-4 md:right-6 z-50 max-w-sm sm:max-w-md w-full bg-slate-900 border border-slate-700 text-white rounded-2xl shadow-2xl p-3.5 flex items-start gap-3 animate-in slide-in-from-bottom-5 duration-200">
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              lastDispatchedAlert.channel === 'email'
+                ? 'bg-blue-600 text-white'
+                : 'bg-emerald-600 text-white'
+            }`}
+          >
+            {lastDispatchedAlert.channel === 'email' ? (
+              <Mail className="w-5 h-5" />
+            ) : (
+              <Phone className="w-5 h-5" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0 pr-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+              <span>
+                {lastDispatchedAlert.channel === 'email'
+                  ? '✉️ Dispatched to Google Mail'
+                  : '📱 Dispatched via Direct SMS'}
+              </span>
+              <span className="text-[10px] text-slate-400 font-normal">
+                ({lastDispatchedAlert.timestamp})
+              </span>
+            </div>
+            <div className="text-[11px] font-medium text-indigo-300 truncate mt-0.5 font-mono">
+              To: {lastDispatchedAlert.target}
+            </div>
+            <p className="text-xs text-slate-300 mt-1 line-clamp-2 leading-tight">
+              {lastDispatchedAlert.message}
+            </p>
+          </div>
+          <button
+            onClick={clearLastDispatchedAlert}
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 shrink-0"
+            title="Dismiss alert"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

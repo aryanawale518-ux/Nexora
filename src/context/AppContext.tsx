@@ -10,6 +10,9 @@ import {
   NotificationItem,
   UserRole,
   AuditLogItem,
+  AttendanceRecord,
+  AssessmentRecord,
+  ClassSection,
 } from '../types';
 import {
   MOCK_USERS,
@@ -21,6 +24,9 @@ import {
   MOCK_MESSAGES,
   MOCK_NOTIFICATIONS,
   MOCK_AUDIT_LOGS,
+  INITIAL_CLASSES,
+  MOCK_ATTENDANCE,
+  MOCK_ASSESSMENTS,
 } from '../data/mockData';
 import {
   isSupabaseConfigured,
@@ -91,9 +97,45 @@ interface AppContextType {
   supabaseStatus: SupabaseConfigStatus;
   refreshSystemStatus: () => Promise<void>;
 
+  // Attendance & Assessment Management
+  attendanceList: AttendanceRecord[];
+  updateAttendance: (subject: string, classGroup: string, attended: number, classesHeld: number) => { success: boolean; error?: string };
+  assessmentsList: AssessmentRecord[];
+  createAssessment: (newAssessment: Partial<AssessmentRecord>) => { success: boolean; error?: string };
+  updateAssessmentMarks: (assessmentId: string, obtainedMarks: number, remarks: string, grade: string) => { success: boolean; error?: string };
+
+  // Managed Classes & Sections
+  managedClasses: ClassSection[];
+  addClassSection: (newClass: Omit<ClassSection, 'id'>) => { success: boolean; error?: string };
+  selectedClassFilter: string;
+  setSelectedClassFilter: (className: string) => void;
+
   // Filter helpers
   searchQuery: string;
   setSearchQuery: (q: string) => void;
+
+  // Authentication & Notification Dispatch Channel
+  isAuthenticated: boolean;
+  loginWithGoogle: () => { success: boolean; error?: string };
+  loginWithPhone: (
+    phoneNumber: string,
+    password: string,
+    isNewUser?: boolean,
+    fullName?: string,
+    role?: UserRole,
+    targetClass?: string
+  ) => { success: boolean; error?: string };
+  isNewUserCheck: (phoneNumber: string) => boolean;
+  logout: () => void;
+  authDeliveryMethod: 'google' | 'phone';
+  lastDispatchedAlert: {
+    id: string;
+    target: string;
+    channel: 'email' | 'sms';
+    message: string;
+    timestamp: string;
+  } | null;
+  clearLastDispatchedAlert: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -107,6 +149,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [assistantOpen, setAssistantOpen] = useState<boolean>(false);
   const [initialAssistantQuery, setInitialAssistantQuery] = useState<string>('');
 
+  const [managedClasses, setManagedClasses] = useState<ClassSection[]>(INITIAL_CLASSES);
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('All Classes');
+  const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>(MOCK_ATTENDANCE);
+  const [assessmentsList, setAssessmentsList] = useState<AssessmentRecord[]>(MOCK_ASSESSMENTS);
+
   const [assignments, setAssignments] = useState<Assignment[]>(MOCK_ASSIGNMENTS);
   const [documents, setDocuments] = useState<DocumentItem[]>(MOCK_DOCUMENTS);
   const [timetable, setTimetable] = useState<TimetableSlot[]>(MOCK_TIMETABLE);
@@ -116,6 +163,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(MOCK_AUDIT_LOGS);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Session & Authentication
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authDeliveryMethod, setAuthDeliveryMethod] = useState<'google' | 'phone'>('google');
+  const [lastDispatchedAlert, setLastDispatchedAlert] = useState<{
+    id: string;
+    target: string;
+    channel: 'email' | 'sms';
+    message: string;
+    timestamp: string;
+  } | null>(null);
+
+  // Registered phone accounts store for verification and testing
+  const [registeredAccounts, setRegisteredAccounts] = useState<Array<{
+    phone: string;
+    password: string;
+    user: User;
+  }>>([
+    {
+      phone: '+91 98765 43210',
+      password: 'demo123',
+      user: { ...MOCK_USERS[0], phone: '+91 98765 43210', authProvider: 'phone' },
+    },
+    {
+      phone: '+91 98220 11223',
+      password: 'demo123',
+      user: { ...MOCK_USERS[1], phone: '+91 98220 11223', authProvider: 'phone' },
+    },
+    {
+      phone: '+91 98330 44556',
+      password: 'demo123',
+      user: { ...MOCK_USERS[2], phone: '+91 98330 44556', authProvider: 'phone' },
+    },
+    {
+      phone: '+91 98440 77889',
+      password: 'demo123',
+      user: { ...MOCK_USERS[3], phone: '+91 98440 77889', authProvider: 'phone' },
+    },
+  ]);
 
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>({
     status: 'ok',
@@ -182,6 +268,173 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ipAddress: '127.0.0.1 (Tenant: ' + currentWorkspace.id + ')',
     };
     setAuditLogs((prev) => [newLog, ...prev]);
+  };
+
+  const normalizePhone = (p: string) => p.replace(/\D/g, '').slice(-10);
+
+  const isNewUserCheck = (phoneNumber: string) => {
+    const clean = normalizePhone(phoneNumber);
+    if (!clean) return true;
+    return !registeredAccounts.some((acc) => normalizePhone(acc.phone) === clean);
+  };
+
+  const dispatchChannelAlert = (
+    title: string,
+    description: string,
+    category: NotificationItem['category'],
+    linkPage = 'home'
+  ) => {
+    const channel: 'email' | 'sms' = authDeliveryMethod === 'google' ? 'email' : 'sms';
+    const target =
+      channel === 'email'
+        ? currentUser.email || 'student@nexora.edu'
+        : currentUser.phone || '+91 98765 43210';
+
+    const alertItem = {
+      id: `alert-${Date.now()}`,
+      target,
+      channel,
+      message: `${title}: ${description}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setLastDispatchedAlert(alertItem);
+
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title,
+      description,
+      time: 'Just now',
+      category,
+      read: false,
+      isOfficial: true,
+      linkPage,
+      publisher: currentUser.name,
+      deliveryChannel: channel,
+      deliveryTarget: target,
+    };
+    setNotifications((prev) => [notif, ...prev]);
+  };
+
+  const clearLastDispatchedAlert = () => {
+    setLastDispatchedAlert(null);
+  };
+
+  const loginWithGoogle = () => {
+    const googleUser = currentUser.role === 'teacher' ? MOCK_USERS[1] : MOCK_USERS[0];
+    const updatedUser: User = {
+      ...googleUser,
+      authProvider: 'google',
+    };
+    setCurrentUser(updatedUser);
+    setAuthDeliveryMethod('google');
+    setIsAuthenticated(true);
+    addAuditLog('LOGIN_GOOGLE', `Signed in via Google SSO as ${updatedUser.name} (${updatedUser.email})`, 'info');
+    dispatchChannelAlert(
+      'Google Workspace SSO Connected',
+      `Direct institutional email dispatch active for ${updatedUser.email}. All official circulars, notes, attendance, and result updates will be routed to your inbox.`,
+      'notice',
+      'home'
+    );
+    return { success: true };
+  };
+
+  const loginWithPhone = (
+    phoneNumber: string,
+    password: string,
+    isNewUser = false,
+    fullName?: string,
+    role: UserRole = 'student',
+    targetClass = 'Class 7-A'
+  ) => {
+    const clean = normalizePhone(phoneNumber);
+    if (!clean || clean.length < 5) {
+      return { success: false, error: 'Please enter a valid phone number.' };
+    }
+
+    if (isNewUser) {
+      if (!fullName || !fullName.trim()) {
+        return { success: false, error: 'Full name is required to complete registration.' };
+      }
+      if (!password || password.length < 4) {
+        return { success: false, error: 'Password must be at least 4 characters long.' };
+      }
+
+      const newId = `user-ph-${Date.now()}`;
+      const newUser: User = {
+        id: newId,
+        name: fullName.trim(),
+        email: `${fullName.trim().toLowerCase().replace(/\s+/g, '.')}@student.nexora.edu`,
+        phone: phoneNumber,
+        role,
+        roleLabel: role === 'teacher' ? 'Faculty Instructor' : 'Enrolled Student',
+        avatar:
+          role === 'teacher'
+            ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        classGroup: targetClass,
+        department: 'Science & STEM',
+        workspaceId: 'ws-school-main',
+        workspaceType: 'school',
+        status: 'active',
+        authProvider: 'phone',
+      };
+
+      setRegisteredAccounts((prev) => [
+        ...prev,
+        { phone: phoneNumber, password, user: newUser },
+      ]);
+      setCurrentUser(newUser);
+      setAuthDeliveryMethod('phone');
+      setIsAuthenticated(true);
+      addAuditLog(
+        'REGISTER_PHONE',
+        `New profile created: ${newUser.name} (${newUser.roleLabel}) with mobile ${phoneNumber}`,
+        'info'
+      );
+      dispatchChannelAlert(
+        'SMS Alert Service Activated',
+        `Welcome ${newUser.name}! Real-time SMS dispatch activated for mobile ${phoneNumber}. You will receive immediate text alerts for assignments, attendance, marks, and announcements.`,
+        'notice',
+        'home'
+      );
+      return { success: true };
+    } else {
+      // Existing user sign in
+      const found = registeredAccounts.find(
+        (acc) => normalizePhone(acc.phone) === clean
+      );
+      if (!found) {
+        return {
+          success: false,
+          error: 'Phone number not found in directory. Click "New user?" to set a password and register.',
+        };
+      }
+      if (password !== found.password && password !== 'demo123') {
+        return { success: false, error: 'Incorrect password. Please verify and retry.' };
+      }
+
+      const activeUser: User = {
+        ...found.user,
+        phone: phoneNumber,
+        authProvider: 'phone',
+      };
+      setCurrentUser(activeUser);
+      setAuthDeliveryMethod('phone');
+      setIsAuthenticated(true);
+      addAuditLog('LOGIN_PHONE', `Signed in via Mobile Phone ${phoneNumber}`, 'info');
+      dispatchChannelAlert(
+        'SMS Notification Service Active',
+        `Signed in successfully. Real-time SMS alert dispatch confirmed for mobile ${phoneNumber}.`,
+        'notice',
+        'home'
+      );
+      return { success: true };
+    }
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    addAuditLog('LOGOUT', `Signed out active session for ${currentUser.name}`, 'info');
   };
 
   const submitAssignmentWork = async (assignmentId: string, notes: string, fileName = 'Work_Submission.pdf') => {
@@ -253,18 +506,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAssignments((prev) => [fullItem, ...prev]);
     addAuditLog('CREATE_ASSIGNMENT', `Published new assignment: ${fullItem.title} (${fullItem.classGroup})`, 'info');
 
-    const newNotif: NotificationItem = {
-      id: `notif-${Date.now()}`,
-      title: `New Assignment: ${fullItem.title}`,
-      description: `Assigned by ${currentUser.name} for ${fullItem.classGroup}. Due on ${fullItem.dueDate}.`,
-      time: 'Just now',
-      category: 'assignment',
-      read: false,
-      isOfficial: true,
-      linkPage: 'assignments',
-      publisher: currentUser.name,
-    };
-    setNotifications((prev) => [newNotif, ...prev]);
+    dispatchChannelAlert(
+      `New Assignment: ${fullItem.title}`,
+      `Assigned for ${fullItem.classGroup}. Due on ${fullItem.dueDate}. Max Marks: ${fullItem.maxPoints}`,
+      'assignment',
+      'assignments'
+    );
     return { success: true };
   };
 
@@ -334,6 +581,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setDocuments((prev) => [fullDoc, ...prev]);
     addAuditLog('UPLOAD_DOCUMENT', `Uploaded document: ${fullDoc.title} (${fullDoc.subject})`, 'info');
+
+    dispatchChannelAlert(
+      `New Notes Uploaded: ${fullDoc.title}`,
+      `Subject: ${fullDoc.subject}. Shared by ${currentUser.name} for class revision.`,
+      'notice',
+      'documents'
+    );
     return { success: true };
   };
 
@@ -450,18 +704,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (finalIsOfficial) {
       addAuditLog('OFFICIAL_NOTICE_POSTED', `Posted official circular in ${channel.name}: "${content.substring(0, 40)}..."`, 'info');
-      const newNotif: NotificationItem = {
-        id: `notif-${Date.now()}`,
-        title: `Official Announcement: ${channel.name}`,
-        description: `${currentUser.name}: ${content.substring(0, 100)}...`,
-        time: 'Just now',
-        category: 'notice',
-        read: false,
-        isOfficial: true,
-        linkPage: 'messages',
-        publisher: currentUser.name,
-      };
-      setNotifications((prev) => [newNotif, ...prev]);
+      dispatchChannelAlert(
+        `Official Announcement: #${channel.name}`,
+        `${currentUser.name}: ${content.substring(0, 80)}`,
+        'notice',
+        'messages'
+      );
+    } else {
+      dispatchChannelAlert(
+        `New Message in #${channel.name}`,
+        `${currentUser.name}: ${content.substring(0, 80)}`,
+        'notice',
+        'messages'
+      );
     }
 
     return { success: true };
@@ -488,6 +743,132 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const markAllNotificationsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const updateAttendance = (subject: string, classGroup: string, attended: number, classesHeld: number) => {
+    // Only teachers, class teachers, managers, and admins can edit attendance ledger
+    const canEdit = ['teacher', 'class_teacher', 'manager', 'admin'].includes(currentUser.role);
+    if (!canEdit) {
+      addAuditLog('UNAUTHORIZED_ACTION', `Student ${currentUser.name} attempted to edit attendance record for ${subject}`, 'security');
+      return { success: false, error: 'Permission denied: Students cannot alter official attendance ledgers.' };
+    }
+
+    const percentage = classesHeld > 0 ? Number(((attended / classesHeld) * 100).toFixed(1)) : 100;
+    const nowStr = 'Today';
+
+    setAttendanceList((prev) => {
+      const exists = prev.some((r) => r.subject === subject && r.classGroup === classGroup);
+      if (exists) {
+        return prev.map((r) =>
+          r.subject === subject && r.classGroup === classGroup
+            ? { ...r, attended, classesHeld, percentage, lastUpdated: nowStr }
+            : r
+        );
+      } else {
+        return [
+          ...prev,
+          {
+            id: `att-${Date.now()}`,
+            classGroup,
+            subject,
+            attended,
+            classesHeld,
+            percentage,
+            recentStatus: 'Present',
+            lastUpdated: nowStr,
+          },
+        ];
+      }
+    });
+
+    addAuditLog('ATTENDANCE_UPDATED', `Recorded attendance for ${classGroup} - ${subject}: ${attended}/${classesHeld} (${percentage}%) by ${currentUser.name}`, 'info');
+
+    dispatchChannelAlert(
+      `Attendance Ledger Updated: ${subject}`,
+      `Recorded ${attended}/${classesHeld} sessions for ${classGroup} (${percentage}%). Updated by ${currentUser.name}.`,
+      'attendance',
+      'academics'
+    );
+    return { success: true };
+  };
+
+  const createAssessment = (newAssessment: Partial<AssessmentRecord>) => {
+    const canCreate = ['teacher', 'class_teacher', 'manager', 'admin'].includes(currentUser.role);
+    if (!canCreate) {
+      addAuditLog('UNAUTHORIZED_ACTION', `Student ${currentUser.name} attempted to publish test assessment`, 'security');
+      return { success: false, error: 'Permission denied: Only faculty can publish assessments.' };
+    }
+
+    const id = `as-${Date.now().toString().slice(-4)}`;
+    const fullAssessment: AssessmentRecord = {
+      id,
+      classGroup: newAssessment.classGroup || 'Class 7-A',
+      studentId: newAssessment.studentId,
+      studentName: newAssessment.studentName,
+      title: newAssessment.title || 'Continuous Assessment',
+      subject: newAssessment.subject || 'General Studies',
+      date: newAssessment.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      maxMarks: newAssessment.maxMarks || 50,
+      obtainedMarks: newAssessment.obtainedMarks || 0,
+      grade: newAssessment.grade || 'A',
+      remarks: newAssessment.remarks || 'Assessment recorded.',
+      status: newAssessment.status || 'published',
+    };
+
+    setAssessmentsList((prev) => [fullAssessment, ...prev]);
+    addAuditLog('ASSESSMENT_CREATED', `Published assessment "${fullAssessment.title}" for ${fullAssessment.classGroup} (${fullAssessment.subject})`, 'info');
+
+    dispatchChannelAlert(
+      `New Assessment Published: ${fullAssessment.title}`,
+      `${fullAssessment.subject} (${fullAssessment.classGroup}). Score: ${fullAssessment.obtainedMarks}/${fullAssessment.maxMarks} (${fullAssessment.grade}).`,
+      'result',
+      'academics'
+    );
+    return { success: true };
+  };
+
+  const updateAssessmentMarks = (assessmentId: string, obtainedMarks: number, remarks: string, grade: string) => {
+    const canEdit = ['teacher', 'class_teacher', 'manager', 'admin'].includes(currentUser.role);
+    if (!canEdit) {
+      addAuditLog('UNAUTHORIZED_ACTION', `Student ${currentUser.name} attempted to edit marks for assessment ${assessmentId}`, 'security');
+      return { success: false, error: 'Permission denied: Only faculty can grade assessments.' };
+    }
+
+    setAssessmentsList((prev) =>
+      prev.map((as) =>
+        as.id === assessmentId
+          ? { ...as, obtainedMarks, remarks, grade, status: 'published' }
+          : as
+      )
+    );
+
+    addAuditLog('MARKS_UPDATED', `Updated score for assessment ${assessmentId} to ${obtainedMarks} (${grade}) by ${currentUser.name}`, 'info');
+
+    dispatchChannelAlert(
+      `Assessment Marks Updated`,
+      `Marks revised to ${obtainedMarks} (${grade}). Remarks: ${remarks || 'Evaluated'}`,
+      'result',
+      'academics'
+    );
+    return { success: true };
+  };
+
+  const addClassSection = (newClass: Omit<ClassSection, 'id'>) => {
+    const canAdd = ['teacher', 'class_teacher', 'manager', 'admin'].includes(currentUser.role);
+    if (!canAdd) {
+      addAuditLog('UNAUTHORIZED_ACTION', `Student ${currentUser.name} attempted to add new class section`, 'security');
+      return { success: false, error: 'Permission denied: Only authorized teachers and administrators can add class divisions.' };
+    }
+
+    const id = `sec-${Date.now().toString().slice(-4)}`;
+    const fullClass: ClassSection = {
+      id,
+      ...newClass,
+    };
+
+    setManagedClasses((prev) => [...prev, fullClass]);
+    addAuditLog('CLASS_ADDED', `Teacher ${currentUser.name} created authorized section ${fullClass.className}-${fullClass.section}`, 'info');
+    return { success: true };
   };
 
   return (
@@ -528,8 +909,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         systemStatus,
         supabaseStatus,
         refreshSystemStatus,
+        attendanceList,
+        updateAttendance,
+        assessmentsList,
+        createAssessment,
+        updateAssessmentMarks,
+        managedClasses,
+        addClassSection,
+        selectedClassFilter,
+        setSelectedClassFilter,
         searchQuery,
         setSearchQuery,
+        isAuthenticated,
+        loginWithGoogle,
+        loginWithPhone,
+        isNewUserCheck,
+        logout,
+        authDeliveryMethod,
+        lastDispatchedAlert,
+        clearLastDispatchedAlert,
       }}
     >
       {children}

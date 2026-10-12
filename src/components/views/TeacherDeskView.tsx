@@ -3,16 +3,15 @@ import {
   Briefcase,
   Megaphone,
   CheckSquare,
-  Upload,
-  Calendar,
-  Award,
-  Users,
-  ShieldCheck,
-  AlertCircle,
   Clock,
   ArrowRight,
   Plus,
   CheckCircle2,
+  Users,
+  BookOpen,
+  Calendar,
+  X,
+  Building,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -20,20 +19,28 @@ export const TeacherDeskView: React.FC = () => {
   const {
     currentUser,
     assignments,
-    messages,
-    timetable,
     sendMessage,
-    createAssignment,
-    gradeAssignment,
     setActivePage,
+    managedClasses,
+    addClassSection,
+    setSelectedClassFilter,
   } = useApp();
 
   const [broadcastNotice, setBroadcastNotice] = useState('');
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
 
+  // Add new class division modal state
+  const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [classNameInput, setClassNameInput] = useState('');
+  const [sectionInput, setSectionInput] = useState('');
+  const [departmentInput, setDepartmentInput] = useState('Science & STEM');
+  const [roomInput, setRoomInput] = useState('Room 204');
+  const [strengthInput, setStrengthInput] = useState(40);
+  const [scheduleInput, setScheduleInput] = useState('Mon-Fri 09:30 AM - 02:00 PM');
+  const [addClassSuccess, setAddClassSuccess] = useState<string | null>(null);
+
   // Filter assignments submitted by students waiting for teacher grading
   const submittedAssignments = assignments.filter((a) => a.status === 'submitted');
-  const gradedAssignments = assignments.filter((a) => a.status === 'graded');
 
   const handleBroadcastNotice = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +50,29 @@ export const TeacherDeskView: React.FC = () => {
     setBroadcastNotice('');
     setBroadcastSuccess(true);
     setTimeout(() => setBroadcastSuccess(false), 3000);
+  };
+
+  const handleAddClassSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!classNameInput.trim() || !sectionInput.trim()) return;
+
+    const res = addClassSection({
+      className: classNameInput.trim(),
+      section: sectionInput.trim().toUpperCase(),
+      department: departmentInput,
+      teacherId: currentUser.id,
+      totalStudents: strengthInput,
+      room: roomInput,
+      scheduleDescription: scheduleInput,
+    });
+
+    if (res.success) {
+      setShowAddClassModal(false);
+      setAddClassSuccess(`Created new division: ${classNameInput} - ${sectionInput}!`);
+      setClassNameInput('');
+      setSectionInput('');
+      setTimeout(() => setAddClassSuccess(null), 3000);
+    }
   };
 
   return (
@@ -59,19 +89,33 @@ export const TeacherDeskView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Logged in as {currentUser.name} ({currentUser.roleLabel}). Manage Class 7-A course deliverables, verified notices, and student evaluations.
+            Logged in as {currentUser.name} ({currentUser.roleLabel}). Manage assigned divisions, add classes, publish announcements, and review evaluations.
           </p>
         </div>
 
         <div className="flex items-center gap-2 text-xs">
           <button
-            onClick={() => setActivePage('assignments')}
-            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-xs transition"
+            onClick={() => setShowAddClassModal(true)}
+            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-xs transition flex items-center gap-1.5"
           >
-            Publish New Assignment
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Class / Division</span>
+          </button>
+          <button
+            onClick={() => setActivePage('assignments')}
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold shadow-xs transition"
+          >
+            Publish Assignment
           </button>
         </div>
       </div>
+
+      {addClassSuccess && (
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2 animate-in fade-in duration-150">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{addClassSuccess}</span>
+        </div>
+      )}
 
       {/* Quick Broadcast Announcement Widget */}
       <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
@@ -79,7 +123,7 @@ export const TeacherDeskView: React.FC = () => {
           <div className="flex items-center gap-2">
             <Megaphone className="w-4 h-4 text-indigo-600" />
             <h3 className="font-bold text-slate-900 text-sm">
-              Quick Broadcast: Official Class 7-A Notice
+              Quick Broadcast: Official Class Notice
             </h3>
           </div>
           <span className="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded">
@@ -90,7 +134,7 @@ export const TeacherDeskView: React.FC = () => {
         {broadcastSuccess && (
           <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Official notice published to #Class 7-A Official Notices channel and pushed to all student notification feeds.</span>
+            <span>Official notice published to #Class 7-A Official Notices channel and pushed to student notification feeds.</span>
           </div>
         )}
 
@@ -117,7 +161,79 @@ export const TeacherDeskView: React.FC = () => {
         </form>
       </div>
 
-      {/* Submissions Pending Evaluation */}
+      {/* Managed Classes Section (Add-On Tool for Multiple Classes) */}
+      <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building className="w-4 h-4 text-indigo-600" />
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">
+                Authorized Classes & Managed Sections ({managedClasses.length} Divisions)
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Teachers can create new divisions (e.g., Class 7-A, Class 7-B, Class 7-C, College Batches) and manage student cohorts.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowAddClassModal(true)}
+            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-semibold rounded-lg text-xs flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Division</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+          {managedClasses.map((cls) => (
+            <div
+              key={cls.id}
+              className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:border-indigo-300 transition flex flex-col justify-between space-y-2"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-sm">
+                    {cls.className} - {cls.section}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded bg-indigo-100/70 text-indigo-800 text-[10px] font-bold">
+                    {cls.room}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">
+                  Department: <strong className="text-slate-700">{cls.department}</strong>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Total Strength: <span className="font-mono font-semibold text-slate-800">{cls.totalStudents}</span> students
+                </div>
+                <div className="text-[10px] text-slate-400 font-mono mt-1">
+                  {cls.scheduleDescription}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    setSelectedClassFilter(`${cls.className}-${cls.section}`);
+                    setActivePage('academics');
+                  }}
+                  className="text-[11px] font-bold text-indigo-600 hover:underline"
+                >
+                  View ERP Ledger →
+                </button>
+                <button
+                  onClick={() => setActivePage('timetable')}
+                  className="text-[11px] text-slate-500 hover:text-slate-800"
+                >
+                  Timetable
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Submissions Pending Evaluation & Office Hours */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Pending Submissions Review */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
@@ -128,7 +244,7 @@ export const TeacherDeskView: React.FC = () => {
                 Student Submissions Awaiting Grading
               </h3>
             </div>
-            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 font-mono">
               {submittedAssignments.length} Submitted
             </span>
           </div>
@@ -171,7 +287,7 @@ export const TeacherDeskView: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-indigo-600" />
-              <h3 className="font-bold text-slate-900 text-sm">Office Hours & Assigned Sections</h3>
+              <h3 className="font-bold text-slate-900 text-sm">Office Hours & Faculty Cabin</h3>
             </div>
             <span className="text-xs text-slate-400 font-medium">Faculty Room 3</span>
           </div>
@@ -191,10 +307,10 @@ export const TeacherDeskView: React.FC = () => {
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Assigned Classes
+                Assigned Teaching Portfolio
               </span>
               <p className="font-semibold text-slate-800">
-                Class 7-A (Science & EVS), Class 7-B (Natural Sciences), Class 8-A (Biology)
+                {managedClasses.map((c) => `${c.className}-${c.section}`).join(', ')}
               </p>
             </div>
 
@@ -209,6 +325,113 @@ export const TeacherDeskView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Add New Class Modal */}
+      {showAddClassModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4 text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <h3 className="font-bold text-slate-900 text-sm">Add New Authorized Class Division</h3>
+              <button onClick={() => setShowAddClassModal(false)}>
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddClassSubmit} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Class / Standard</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Class 7 or FY B.Sc"
+                    value={classNameInput}
+                    onChange={(e) => setClassNameInput(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Section / Division</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. B or C or Div 1"
+                    value={sectionInput}
+                    onChange={(e) => setSectionInput(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Department</label>
+                <select
+                  value={departmentInput}
+                  onChange={(e) => setDepartmentInput(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                >
+                  <option>Science & STEM</option>
+                  <option>Natural Sciences & Biology</option>
+                  <option>Mathematics & Computing</option>
+                  <option>Computer Science & IT</option>
+                  <option>General Studies</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Assigned Room / Lab</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Room 206 or Lab 3"
+                    value={roomInput}
+                    onChange={(e) => setRoomInput(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Class Strength</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={strengthInput}
+                    onChange={(e) => setStrengthInput(Number(e.target.value))}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Schedule Pacing</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mon-Fri 09:30 AM - 02:00 PM"
+                  value={scheduleInput}
+                  onChange={(e) => setScheduleInput(e.target.value)}
+                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowAddClassModal(false)}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700"
+                >
+                  Create Section
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

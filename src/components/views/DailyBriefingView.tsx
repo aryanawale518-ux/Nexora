@@ -23,10 +23,17 @@ export const DailyBriefingView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
   const [remindersEnabled, setRemindersEnabled] = useState(true);
 
-  const todaySlots = timetable.filter((s) => s.dayOfWeek === 1);
-  const tomorrowSlots = timetable.filter((s) => s.dayOfWeek === 2);
+  const isTeacher = currentUser.role === 'teacher' || currentUser.role === 'class_teacher';
+
+  const todaySlots = isTeacher
+    ? timetable.filter((t) => t.dayOfWeek === 1 || t.teacher.toLowerCase().includes('sen') || t.teacher.toLowerCase().includes('verma'))
+    : timetable.filter((s) => s.dayOfWeek === 1);
+  const tomorrowSlots = isTeacher
+    ? timetable.filter((t) => t.dayOfWeek === 2 || t.teacher.toLowerCase().includes('sen') || t.teacher.toLowerCase().includes('verma'))
+    : timetable.filter((s) => s.dayOfWeek === 2);
 
   const pendingAssignments = assignments.filter((a) => a.status === 'pending');
+  const awaitingGrading = assignments.filter((a) => a.status === 'submitted');
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
@@ -35,13 +42,15 @@ export const DailyBriefingView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-              Personalized Daily Briefing
+              {isTeacher ? 'Faculty Daily Briefing & Agenda' : 'Personalized Daily Briefing'}
             </h1>
             <span className="text-xs text-slate-400 font-medium">·</span>
             <span className="text-xs text-slate-500 font-medium">Verified Records</span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Synthesized schedule, critical lab gear checklist, confirmed room shifts, and official circulars for {currentUser.name}.
+            {isTeacher
+              ? `Daily faculty agenda, awaiting student evaluations, class syllabus pacing, and scheduled lectures for ${currentUser.name}.`
+              : `Synthesized schedule, critical lab gear checklist, confirmed room shifts, and official circulars for ${currentUser.name}.`}
           </p>
         </div>
 
@@ -74,25 +83,33 @@ export const DailyBriefingView: React.FC = () => {
             <span>Nexora Briefing Engine</span>
           </div>
           <span className="text-slate-400 font-mono">
-            {activeTab === 'today' ? 'Monday Roster' : 'Tuesday Roster · Practical Day'}
+            {isTeacher ? 'Faculty Console Active' : activeTab === 'today' ? 'Monday Roster' : 'Tuesday Roster · Practical Day'}
           </span>
         </div>
 
         <h2 className="text-xl font-bold text-white tracking-tight">
-          {activeTab === 'today'
+          {isTeacher
+            ? activeTab === 'today'
+              ? `Today: ${todaySlots.length} Lectures Scheduled · ${awaitingGrading.length} Submissions Awaiting Grading`
+              : 'Tomorrow: Bio-Lab 2 Practical Session Instruction · Review Safety Protocols'
+            : activeTab === 'today'
             ? 'Today: 4 Classes Scheduled · EVS Assignment Pending'
             : 'Tomorrow: Bio-Lab 2 Practical Session · Mandatory Apron & Journal Required'}
         </h2>
 
         <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-          {activeTab === 'today'
+          {isTeacher
+            ? activeTab === 'today'
+              ? `Review student field study observations and verify attendance ledgers for assigned divisions. Next grading priority: EVS field submissions and practical reports.`
+              : `You are scheduled to supervise Biology Lab 2 at 08:30 AM tomorrow. Safety protocols and dissection gear checks must be completed before laboratory admittance.`
+            : activeTab === 'today'
             ? 'You begin with Homeroom & Assembly at 08:30 AM in Room 204 with Prof. Rajesh Verma. Ensure your EVS Biodiversity observations are recorded before the Oct 14 deadline.'
             : 'Official Notice #104 by Dr. Meera Sen takes effect tomorrow at 08:30 AM. Students must report to Biology Lab 2 equipped with laboratory apron, dissection needles, and signed journal.'}
         </p>
 
         <div className="pt-2 flex flex-wrap items-center gap-3 text-xs">
           <button
-            onClick={() => openAssistantWithQuery(`Give me a detailed verbal breakdown of ${activeTab === 'today' ? 'today' : 'tomorrow'}`)}
+            onClick={() => openAssistantWithQuery(`Give me a detailed verbal breakdown of ${activeTab === 'today' ? 'today' : 'tomorrow'} for ${currentUser.name}`)}
             className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition flex items-center gap-1.5 shadow-xs whitespace-nowrap min-h-[38px]"
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -199,30 +216,64 @@ export const DailyBriefingView: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <h3 className="font-bold text-slate-900 text-sm">Deliverables & Notice Summary</h3>
+              <h3 className="font-bold text-slate-900 text-sm">
+                {isTeacher ? 'Student Submissions Awaiting Evaluation' : 'Deliverables & Notice Summary'}
+              </h3>
             </div>
             <span className="text-xs font-semibold text-slate-600 font-mono tabular-nums">
-              {pendingAssignments.length} pending
+              {isTeacher ? `${awaitingGrading.length} submissions` : `${pendingAssignments.length} pending`}
             </span>
           </div>
 
           <div className="space-y-3 text-xs">
-            {pendingAssignments.map((a) => (
-              <div
-                key={a.id}
-                className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-indigo-300 transition cursor-pointer"
-                onClick={() => setActivePage('assignments')}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-slate-900">{a.title}</span>
-                  <span className="text-rose-600 font-semibold text-[10px] font-mono tabular-nums">Due: {a.dueDate}</span>
-                </div>
-                <p className="text-slate-500 text-[11px] line-clamp-1">{a.description}</p>
-                <span className="text-[10px] text-indigo-600 font-semibold mt-1 block">
-                  Assigned by {a.assignedBy} · {a.subject}
-                </span>
-              </div>
-            ))}
+            {isTeacher ? (
+              <>
+                {awaitingGrading.map((sub) => (
+                  <div
+                    key={sub.id}
+                    className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-indigo-300 transition cursor-pointer"
+                    onClick={() => setActivePage('teacher_desk')}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-slate-900">{sub.title}</span>
+                      <span className="text-blue-600 font-semibold text-[10px] font-mono tabular-nums">
+                        {sub.submission?.submittedAt}
+                      </span>
+                    </div>
+                    <p className="text-slate-500 text-[11px] line-clamp-1 italic">
+                      Student: Aarav Sharma — "{sub.submission?.studentNotes}"
+                    </p>
+                    <span className="text-[10px] text-indigo-600 font-semibold mt-1 block">
+                      Subject: {sub.subject} · Click to Grade
+                    </span>
+                  </div>
+                ))}
+                {awaitingGrading.length === 0 && (
+                  <div className="py-6 text-center text-slate-400">
+                    No pending student submissions waiting for evaluation.
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {pendingAssignments.map((a) => (
+                  <div
+                    key={a.id}
+                    className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-indigo-300 transition cursor-pointer"
+                    onClick={() => setActivePage('assignments')}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-slate-900">{a.title}</span>
+                      <span className="text-rose-600 font-semibold text-[10px] font-mono tabular-nums">Due: {a.dueDate}</span>
+                    </div>
+                    <p className="text-slate-500 text-[11px] line-clamp-1">{a.description}</p>
+                    <span className="text-[10px] text-indigo-600 font-semibold mt-1 block">
+                      Assigned by {a.assignedBy} · {a.subject}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
 
             {/* Timetable change reminder */}
             <div className="p-3 rounded-xl border border-indigo-100 bg-indigo-50/40 text-slate-800">

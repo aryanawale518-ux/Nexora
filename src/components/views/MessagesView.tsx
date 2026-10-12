@@ -107,16 +107,16 @@ export const MessagesView: React.FC = () => {
         <div className="p-3.5 border-b border-slate-200 space-y-2.5">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-slate-900 text-sm">Conversations</h2>
-            {isFacultyOrAdmin && (
-              <button
-                onClick={() => setShowNewGroupModal(true)}
-                className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition text-xs flex items-center gap-1 shadow-2xs"
-                title="Create Group"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-semibold pr-1">New</span>
-              </button>
-            )}
+            <button
+              onClick={() => setShowNewGroupModal(true)}
+              className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition text-xs flex items-center gap-1 shadow-2xs"
+              title={isFacultyOrAdmin ? "Create Group or Broadcast Channel" : "Start Study Group or Message"}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-semibold pr-1">
+                {isFacultyOrAdmin ? 'New' : 'New Chat'}
+              </span>
+            </button>
           </div>
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />

@@ -35,9 +35,14 @@ export const DashboardView: React.FC = () => {
     year: 'numeric',
   });
 
-  // Today's schedule slots (Day 2 has the science practical with lab materials)
-  const todaySlots = timetable.filter((t) => t.dayOfWeek === 2);
+  const isTeacher = currentUser.role === 'teacher' || currentUser.role === 'class_teacher';
+
+  // Today's schedule slots (For teachers: classes they teach or Day 2 sessions)
+  const todaySlots = isTeacher
+    ? timetable.filter((t) => t.dayOfWeek === 2 || t.teacher.toLowerCase().includes('sen') || t.teacher.toLowerCase().includes('verma'))
+    : timetable.filter((t) => t.dayOfWeek === 2);
   const pendingAssignments = assignments.filter((a) => a.status === 'pending');
+  const awaitingGrading = assignments.filter((a) => a.status === 'submitted');
   const officialNotices = messages['ch-official-7a'] || [];
 
   return (
@@ -48,34 +53,45 @@ export const DashboardView: React.FC = () => {
           <div className="flex items-center gap-2 text-xs text-indigo-300 font-medium mb-2">
             <span>Academic Term 2026-27</span>
             <span aria-hidden="true">·</span>
-            <span>Class 7-A Roster</span>
+            <span>{isTeacher ? 'Faculty & Department Desk' : 'Student Academic Portal'}</span>
             <span aria-hidden="true">·</span>
-            <span>Greenfield Academy</span>
+            <span>Greenfield Public School & College</span>
           </div>
 
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            Good morning, {currentUser.name.split(' ')[0]}
+            Good morning, {currentUser.name}
           </h1>
 
           <p className="mt-2 text-slate-300 text-sm leading-relaxed">
-            {dateFormatted} — You have 3 classes scheduled today, 1 pending assignment due this week, and a Science Practical tomorrow morning.
+            {dateFormatted} — {isTeacher
+              ? `You have ${todaySlots.length} teaching sessions across assigned divisions today, ${awaitingGrading.length} student submissions awaiting grading, and departmental office hours active.`
+              : 'You have 3 classes scheduled today, 1 pending assignment due this week, and a Science Practical tomorrow morning.'}
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
-              onClick={() => openAssistantWithQuery('Prepare my personalized daily briefing for today')}
+              onClick={() => openAssistantWithQuery(isTeacher ? 'Prepare my faculty briefing and grading priorities' : 'Prepare my personalized daily briefing for today')}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition shadow-xs whitespace-nowrap min-h-[38px]"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Generate Daily Briefing</span>
+              <span>{isTeacher ? 'Generate Faculty Briefing' : 'Generate Daily Briefing'}</span>
             </button>
             <button
-              onClick={() => setActivePage('briefing')}
+              onClick={() => setActivePage(isTeacher ? 'teacher_desk' : 'briefing')}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 whitespace-nowrap min-h-[38px]"
             >
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>View "My Day" & "Tomorrow"</span>
+              <span>{isTeacher ? 'Open Teacher Desk' : 'View "My Day" & "Tomorrow"'}</span>
             </button>
+            {isTeacher && (
+              <button
+                onClick={() => setActivePage('academics')}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs transition shadow-xs whitespace-nowrap min-h-[38px]"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Class-Wise ERP & Attendance</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -238,47 +254,90 @@ export const DashboardView: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <h3 className="font-bold text-slate-900 text-sm">Pending Assignments</h3>
+                <h3 className="font-bold text-slate-900 text-sm">
+                  {isTeacher ? 'Submissions Awaiting Grading' : 'Pending Assignments'}
+                </h3>
               </div>
               <span className="text-xs font-semibold text-slate-600 font-mono tabular-nums">
-                {pendingAssignments.length} pending
+                {isTeacher ? `${awaitingGrading.length} submissions` : `${pendingAssignments.length} pending`}
               </span>
             </div>
 
             <div className="space-y-3">
-              {pendingAssignments.map((a) => (
-                <div
-                  key={a.id}
-                  className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-indigo-300 transition cursor-pointer"
-                  onClick={() => setActivePage('assignments')}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[10px] font-bold text-indigo-700 uppercase">{a.subject}</span>
-                    <span className="text-[10px] font-semibold text-rose-600 font-mono tabular-nums">
-                      Due: {a.dueDate}
-                    </span>
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-900 leading-snug">{a.title}</h4>
-                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{a.description}</p>
-                  <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-200/80">
-                    <span className="text-[10px] text-slate-400">By {a.assignedBy}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActivePage('assignments');
-                      }}
-                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800"
+              {isTeacher ? (
+                <>
+                  {awaitingGrading.map((sub) => (
+                    <div
+                      key={sub.id}
+                      className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-indigo-300 transition cursor-pointer"
+                      onClick={() => setActivePage('teacher_desk')}
                     >
-                      Submit Work →
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {pendingAssignments.length === 0 && (
-                <div className="text-center py-6 text-slate-400 text-xs">
-                  All current assignments completed!
-                </div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-blue-700 uppercase">{sub.subject}</span>
+                        <span className="text-[10px] font-semibold text-blue-800 bg-blue-50 px-1.5 py-0.2 rounded font-mono">
+                          Submitted
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 leading-snug">{sub.title}</h4>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Student: Aarav Sharma · {sub.submission?.submittedAt}
+                      </p>
+                      <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-200/80">
+                        <span className="text-[10px] text-slate-400">Class 7-A</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActivePage('teacher_desk');
+                          }}
+                          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800"
+                        >
+                          Grade Student →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {awaitingGrading.length === 0 && (
+                    <div className="text-center py-6 text-slate-400 text-xs">
+                      All submitted student papers have been evaluated!
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {pendingAssignments.map((a) => (
+                    <div
+                      key={a.id}
+                      className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-indigo-300 transition cursor-pointer"
+                      onClick={() => setActivePage('assignments')}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-indigo-700 uppercase">{a.subject}</span>
+                        <span className="text-[10px] font-semibold text-rose-600 font-mono tabular-nums">
+                          Due: {a.dueDate}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 leading-snug">{a.title}</h4>
+                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{a.description}</p>
+                      <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-200/80">
+                        <span className="text-[10px] text-slate-400">By {a.assignedBy}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActivePage('assignments');
+                          }}
+                          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800"
+                        >
+                          Submit Work →
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {pendingAssignments.length === 0 && (
+                    <div className="text-center py-6 text-slate-400 text-xs">
+                      All current assignments completed!
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

@@ -47,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
     badgeColor?: string;
     requiresFaculty?: boolean;
     requiresAdmin?: boolean;
+    studentOnly?: boolean;
     section?: string;
   }
 
@@ -58,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
     { id: 'assignments', label: 'Assignments & Tasks', icon: CheckSquare, badge: pendingAssignments > 0 ? pendingAssignments : undefined, badgeColor: 'bg-amber-600' },
     { id: 'documents', label: 'Notes & Documents', icon: FileText },
     { id: 'timetable', label: 'Timetable & Calendar', icon: Calendar },
-    { id: 'results', label: 'Results & Reports', icon: BarChart2 },
+    { id: 'results', label: 'Results & Reports', icon: BarChart2, studentOnly: true },
     { id: 'contacts', label: 'Contacts & Directory', icon: Contact2 },
     { id: 'clubs', label: 'Clubs & Activities', icon: Compass },
 
@@ -120,6 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) =
         {navItems.map((item) => {
           if (item.requiresFaculty && !isFacultyOrAdmin) return null;
           if (item.requiresAdmin && !isAdmin) return null;
+          if (item.studentOnly && isFacultyOrAdmin) return null;
 
           const isActive = activePage === item.id;
           const Icon = item.icon;

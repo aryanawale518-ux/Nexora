@@ -54,6 +54,18 @@ export const TimetableCalendarView: React.FC = () => {
     }
   };
 
+  const isTeacher = currentUser.role === 'teacher' || currentUser.role === 'class_teacher';
+  const [selectedClassSection, setSelectedClassSection] = useState<string>('All Assigned Sections');
+
+  const availableSections = ['All Assigned Sections', 'Class 7-A', 'Class 7-B', 'Class 8-A', 'FY B.Sc CS'];
+
+  // Filter slots for teacher: if teacher, can view combined timetable or specific assigned section
+  const displaySlots = timetable.filter((slot) => {
+    if (selectedClassSection === 'All Assigned Sections') return true;
+    if (selectedClassSection === 'Class 7-A') return true; // base slots belong to 7-A
+    return slot.teacher.toLowerCase().includes('sen') || slot.teacher.toLowerCase().includes('verma');
+  });
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Header bar */}
@@ -61,44 +73,86 @@ export const TimetableCalendarView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-              Timetable & Academic Calendar
+              {isTeacher ? 'Faculty Master Timetable & Syllabus Calendar' : 'Timetable & Academic Calendar'}
             </h1>
             <span className="text-xs text-slate-400 font-medium">·</span>
             <span className="text-xs text-slate-500 font-medium">Timetable v2.1</span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Verified schedules for Class 7-A. Relocations and room changes require faculty verification.
+            {isTeacher
+              ? `Master teaching schedule for ${currentUser.name}. Inspect combined schedules across multiple assigned divisions and syllabus completion deadlines.`
+              : 'Verified schedules for Class 7-A. Relocations and room changes require faculty verification.'}
           </p>
         </div>
 
-        {/* View mode toggle */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
-          <button
-            onClick={() => setViewMode('weekly')}
-            className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-              viewMode === 'weekly' ? 'bg-white text-indigo-600 shadow-2xs font-semibold' : 'hover:text-slate-900'
-            }`}
-          >
-            Weekly Grid
-          </button>
-          <button
-            onClick={() => setViewMode('daily')}
-            className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-              viewMode === 'daily' ? 'bg-white text-indigo-600 shadow-2xs font-semibold' : 'hover:text-slate-900'
-            }`}
-          >
-            Daily View
-          </button>
-          <button
-            onClick={() => setViewMode('monthly')}
-            className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-              viewMode === 'monthly' ? 'bg-white text-indigo-600 shadow-2xs font-semibold' : 'hover:text-slate-900'
-            }`}
-          >
-            Monthly Assessment
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Teacher Division Selector */}
+          {isTeacher && (
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-xl text-xs shadow-2xs">
+              <span className="text-[11px] text-slate-500 font-medium">Section:</span>
+              <select
+                value={selectedClassSection}
+                onChange={(e) => setSelectedClassSection(e.target.value)}
+                className="bg-transparent font-semibold text-slate-800 focus:outline-none"
+              >
+                {availableSections.map((sec) => (
+                  <option key={sec} value={sec}>{sec}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* View mode toggle */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
+            <button
+              onClick={() => setViewMode('weekly')}
+              className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+                viewMode === 'weekly' ? 'bg-white text-indigo-600 shadow-2xs font-semibold' : 'hover:text-slate-900'
+              }`}
+            >
+              Weekly Grid
+            </button>
+            <button
+              onClick={() => setViewMode('daily')}
+              className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+                viewMode === 'daily' ? 'bg-white text-indigo-600 shadow-2xs font-semibold' : 'hover:text-slate-900'
+              }`}
+            >
+              Daily View
+            </button>
+            <button
+              onClick={() => setViewMode('monthly')}
+              className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+                viewMode === 'monthly' ? 'bg-white text-indigo-600 shadow-2xs font-semibold' : 'hover:text-slate-900'
+              }`}
+            >
+              Syllabus Timeline
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Teacher Syllabus & Pacing Tracker Banner */}
+      {isTeacher && (
+        <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-indigo-600 text-white shrink-0 font-bold">
+              📚
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 block text-xs">
+                Syllabus Pacing & Term 2 Deadlines Tracker
+              </span>
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                Class 7-A (Unit 4: Plant Anatomy) — <strong>4 days left to conclude syllabus</strong>. Class 7-B — 6 days remaining. Class 8-A — 8 days remaining.
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-700 font-bold shrink-0 self-start md:self-auto font-mono">
+            Pacing: On Track (88%)
+          </span>
+        </div>
+      )}
 
       {/* Confirmed Change Highlight Banner */}
       <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-start gap-4">
@@ -126,7 +180,7 @@ export const TimetableCalendarView: React.FC = () => {
         <div className="overflow-x-auto pb-2">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 min-w-[700px] md:min-w-0">
             {days.map((day) => {
-              const daySlots = timetable.filter((s) => s.dayOfWeek === day.num);
+              const daySlots = displaySlots.filter((s) => s.dayOfWeek === day.num);
               return (
                 <div
                   key={day.num}

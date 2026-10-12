@@ -6,6 +6,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: UserRole;
   roleLabel: string;
   avatar: string;
@@ -15,6 +16,7 @@ export interface User {
   workspaceType: WorkspaceType;
   officeHours?: string;
   status: 'active' | 'away' | 'offline';
+  authProvider?: 'google' | 'phone' | 'email';
 }
 
 export interface Workspace {
@@ -31,11 +33,13 @@ export interface NotificationItem {
   title: string;
   description: string;
   time: string;
-  category: 'notice' | 'assignment' | 'deadline' | 'timetable' | 'mention' | 'feedback';
+  category: 'notice' | 'assignment' | 'deadline' | 'timetable' | 'mention' | 'feedback' | 'attendance' | 'result';
   read: boolean;
   isOfficial: boolean;
   linkPage: string;
   publisher?: string;
+  deliveryChannel?: 'email' | 'sms' | 'in_app';
+  deliveryTarget?: string;
 }
 
 export interface MessageAttachment {
@@ -149,16 +153,33 @@ export interface TimetableSlot {
   requiredMaterials?: string[];
 }
 
+export interface ClassSection {
+  id: string;
+  className: string;
+  section: string;
+  department: string;
+  teacherId: string;
+  totalStudents: number;
+  room: string;
+  scheduleDescription: string;
+}
+
 export interface AttendanceRecord {
+  id?: string;
+  classGroup: string;
   subject: string;
   classesHeld: number;
   attended: number;
   percentage: number;
   recentStatus: 'Present' | 'Late' | 'Absent';
+  lastUpdated?: string;
 }
 
 export interface AssessmentRecord {
   id: string;
+  classGroup: string;
+  studentId?: string;
+  studentName?: string;
   title: string;
   subject: string;
   date: string;

@@ -34,6 +34,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebarMobile, onOpenSet
     markNotificationAsRead,
     markAllNotificationsRead,
     setActivePage,
+    logout,
+    authDeliveryMethod,
   } = useApp();
 
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
@@ -300,17 +302,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebarMobile, onOpenSet
               setRoleDropdownOpen(false);
               setNotificationsOpen(false);
             }}
-            className="flex items-center p-0.5 rounded-full hover:ring-2 hover:ring-slate-300 transition"
+            className="flex items-center p-0.5 rounded-full hover:ring-2 hover:ring-indigo-300 transition shrink-0"
+            title="User Profile Menu"
           >
             <Avatar src={currentUser.avatar} name={currentUser.name} size="sm" />
           </button>
 
           {profileDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-40 text-xs animate-in fade-in-50 duration-150">
+            <div className="absolute right-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] origin-top-right bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 text-xs animate-in fade-in-50 duration-150">
               <div className="px-3 py-2 border-b border-slate-100">
                 <div className="font-bold text-slate-900 truncate">{currentUser.name}</div>
                 <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">
+                <div className="text-[10px] text-indigo-700 font-medium mt-0.5">
                   {currentUser.roleLabel}
                 </div>
               </div>
@@ -321,20 +324,38 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebarMobile, onOpenSet
                     setActivePage('settings');
                     setProfileDropdownOpen(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-50"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-50 text-left"
                 >
-                  <UserIcon className="w-3.5 h-3.5 text-slate-500" />
-                  Account & Settings
+                  <UserIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>Account & Settings</span>
                 </button>
                 <button
                   onClick={() => {
                     onOpenSetupGuide();
                     setProfileDropdownOpen(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-50"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-50 text-left"
                 >
-                  <Info className="w-3.5 h-3.5 text-slate-500" />
-                  System Architecture
+                  <Info className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>System Architecture</span>
+                </button>
+
+                <div className="my-1 border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-500 bg-slate-50 rounded-lg">
+                  <div className="font-semibold text-slate-700">Notification Channel:</div>
+                  <div className="text-emerald-700 flex items-center gap-1 mt-0.5 font-medium">
+                    {authDeliveryMethod === 'google' ? '✉️ Google Mail SSO' : '📱 SMS Direct Alerts'}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    logout();
+                    setProfileDropdownOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-rose-600 hover:bg-rose-50 text-left font-semibold"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>Sign Out</span>
                 </button>
               </div>
             </div>
