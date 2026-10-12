@@ -6,7 +6,6 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string;
   role: UserRole;
   roleLabel: string;
   avatar: string;
@@ -16,7 +15,6 @@ export interface User {
   workspaceType: WorkspaceType;
   officeHours?: string;
   status: 'active' | 'away' | 'offline';
-  authProvider?: 'google' | 'phone' | 'email';
 }
 
 export interface Workspace {
@@ -33,13 +31,11 @@ export interface NotificationItem {
   title: string;
   description: string;
   time: string;
-  category: 'notice' | 'assignment' | 'deadline' | 'timetable' | 'mention' | 'feedback' | 'attendance' | 'result';
+  category: 'notice' | 'assignment' | 'deadline' | 'timetable' | 'mention' | 'feedback';
   read: boolean;
   isOfficial: boolean;
   linkPage: string;
   publisher?: string;
-  deliveryChannel?: 'email' | 'sms' | 'in_app';
-  deliveryTarget?: string;
 }
 
 export interface MessageAttachment {

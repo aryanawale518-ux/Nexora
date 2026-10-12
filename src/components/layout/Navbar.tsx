@@ -34,8 +34,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebarMobile, onOpenSet
     markNotificationAsRead,
     markAllNotificationsRead,
     setActivePage,
-    logout,
-    authDeliveryMethod,
   } = useApp();
 
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
@@ -338,24 +336,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebarMobile, onOpenSet
                 >
                   <Info className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                   <span>System Architecture</span>
-                </button>
-
-                <div className="my-1 border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-500 bg-slate-50 rounded-lg">
-                  <div className="font-semibold text-slate-700">Notification Channel:</div>
-                  <div className="text-emerald-700 flex items-center gap-1 mt-0.5 font-medium">
-                    {authDeliveryMethod === 'google' ? '✉️ Google Mail SSO' : '📱 SMS Direct Alerts'}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    logout();
-                    setProfileDropdownOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-rose-600 hover:bg-rose-50 text-left font-semibold"
-                >
-                  <LogOut className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  <span>Sign Out</span>
                 </button>
               </div>
             </div>

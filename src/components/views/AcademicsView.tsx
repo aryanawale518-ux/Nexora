@@ -27,7 +27,6 @@ export const AcademicsView: React.FC = () => {
     managedClasses,
     selectedClassFilter,
     setSelectedClassFilter,
-    setActivePage,
   } = useApp();
 
   const isTeacher =
